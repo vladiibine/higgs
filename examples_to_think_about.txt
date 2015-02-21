@@ -1,0 +1,41 @@
+##
+#We're in a file called asdf.higgs
+#
+#
+
+a = 3
+
+# When no hacking has been done, this would always be available as a
+# reference in the module asdf
+def inc(pre=(x:int)):int{	# means we defined a function to be applied to ints 
+  x + 1
+}
+
+
+##
+#We're now in a file qwer.higgs, somewhere where the import engine could see
+# asdf.higgs, if it looked for it
+#
+#
+
+import asdf  # this is symbolic.. the syntax could be vastly different
+# at this point, the asdf.higgs module was loaded which means the code defined
+# in the module, interpreted as the $load() function, will have been called.
+# The $load function's default implementation, would call the $assign function 2 times, once for the name 'a' and once for the name 'inc'. To 'a' it would assign an integer object with value 3, to 'inc' it would assign a function, with the implementation {x+1} (which would return a new int).
+# the $assign function would also update a dictionary of members, and when executing the code object would be done, it would then assign this dictionary as the $interface attribute of this object ($interface would be read only from now on, being declared explicitly so)
+
+pseudo-code for that the importing procedure does:
+find file
+    if not found throw an import exception
+
+create empty module object
+
+load thecode specified in the module body as a code object called 'inline'
+
+call the module's $load function, with the parameter inline=the 'inline' object
+
+if the module has defined a $load function, execute it
+    this should call its super method $load, with the inline argument), but could choose not to.
+
+if the module hasn't defined a $load, the default module $load gets called
+    this executes the inline code.
