@@ -35,11 +35,11 @@ class GlobalScope(object):
     def assign(self, name, value=NOT_PROVIDED, type_decl=NOT_PROVIDED, *args,
                **kwargs):
         interface = find_in_scope('interface', kwargs)
-        implementation = find_in_scope('implementation', kwargs)
+        impl = find_in_scope('impl', kwargs)
         # interface[name] = type(value)
 
         if value is not self.NOT_PROVIDED:
-            implementation[name] = value
+            impl[name] = value
             interface[name] = type(value)
             return
 
@@ -79,23 +79,42 @@ class Module(GlobalScope):
         assign = find_in_scope('assign', kwargs)
 
         interface = {}
-        implementation = {}
-        assign = partial(assign, interface=interface,
-                         implementation=implementation)
+        impl = {}
+        assign = partial(assign, interface=interface, impl=impl)
 
         inline(assign=assign)
 
         self.interface = interface
-        self.implementation = implementation
+        self.impl = impl
 
     def __init__(self, *args, **kwargs):
         self.interface = None
-        self.implementation = None
+        self.impl = None
         self.load(self.inline, *args, **kwargs)
 
 
 class HiggsObject(object):
     interface = None
+    impl = None
+
+
+class HiggsFunction(HiggsObject):
+    interface = {
+        'pre': HiggsArgsSpec(),
+        'post': HiggsArgsSpec(),
+        'rtype': HiggsObject()
+    }
+    impl = None
+
+    @classmethod
+    def create_literal(cls, code=None, pre=None, post=None, rtype=None):
+        new_function = cls()
+        new_function.interface = {
+            'pre': pre,
+            'post': post,
+            'rtype': rtype
+        }
+        new_function.impl = code
 
 
 class HiggsInt(HiggsObject):
@@ -106,40 +125,52 @@ class HiggsInt(HiggsObject):
     @classmethod
     def create_literal(cls, value):
         new_int = HiggsInt()
-        
-
-
-class HiggsFunction(HiggsObject):
-    interface = {
-        'code': HiggsCode(),
-        'pre': HiggsArgsList(),
-        'post': HiggsArgsList(),
-        'rtype': HiggsObject()
-    }
-
-    @classmethod
-    def create_literal(cls, code=None, pre=None, post=None, rtype=None):
-        new_function = cls()
-        new_function.interface = {
-            'code': code,
-            'pre': pre,
-            'post': post,
-            'rtype': rtype
-        }
 
 
 class HiggsArgsList(HiggsObject):
+    """Represents an ordered, (immutable?) sequence of HiggsObjects
+    """
     interface = {
         '$positional': HiggsList(),
         '$keywords': 0
     }
 
 
+class HiggsArgsSpec(HiggsObject):
+    interface = {
+
+    }
+
+
 class HiggsList(HiggsObject):
+    """Represents an integer indexed, 0-based ordered typed array of HiggsObjects
+
+    The interfaces of the HOs must (at compile time) satisfy the type member
+    of the list
+    """
     interface = {
         '$get_item': 0,
         '$set_item': 0,
-        '$length': 0
+        '$length': 0,
+        '$type': 0
+    }
+
+
+class HiggsFrozenDict(HiggsObject):
+    """A dictionary that after creation, its keys and values can not be changed
+
+    IDEA:
+        Unlike Python dicts, the keys don't have to return the same hash value,
+        because their individual object IDs will be used, not their hash value
+            -let's see how this works out... it works OK in Python, one must
+            simply inherit from types like sets, lists and dicts and use the
+            subclass thereof.... why all this nonsense? to provide a hook
+            for the user to implement weird behavior
+    """
+    interface = {
+        # need generics :D :(( oh well.. let's work around this
+
+        '$get_item': HiggsFunction.create_literal(post=())
     }
 
 
